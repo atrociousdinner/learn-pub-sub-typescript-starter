@@ -1,5 +1,23 @@
+import amqp from "amqplib"
+
+
 async function main() {
+
+  const connection = 'amqp://guest:guest@localhost:5672/'
+  const conn = await amqp.connect(connection)
+
+
   console.log("Starting Peril server...");
+
+
+  process.on("SIGINT", async () => {
+    console.log("Shutting down")
+
+    await conn.close();
+
+    process.exit(0);
+
+  })
 }
 
 main().catch((err) => {
