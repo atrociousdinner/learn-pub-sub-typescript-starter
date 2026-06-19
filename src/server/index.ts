@@ -1,4 +1,7 @@
 import amqp from "amqplib"
+import { publishJSON } from "../internal/pubsub/publish.js";
+import { ExchangePerilDirect, PauseKey } from "../internal/routing/routing.js";
+import { GameState, type PlayingState } from "../internal/gamelogic/gamestate.js";
 
 
 async function main() {
@@ -18,6 +21,13 @@ async function main() {
     process.exit(0);
 
   })
+
+  const channel = await conn.createConfirmChannel()
+  const state: PlayingState = {
+    isPaused: true
+  }
+  publishJSON(channel, ExchangePerilDirect, PauseKey, state)
+
 }
 
 main().catch((err) => {
