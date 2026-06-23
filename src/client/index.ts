@@ -7,12 +7,14 @@ import {
   printQuit,
 } from "../internal/gamelogic/gamelogic.js";
 import { declareAndBind, subscribeJSON } from "../internal/pubsub/consume.js";
-import { ExchangePerilDirect, PauseKey } from "../internal/routing/routing.js";
+import { ExchangePerilDirect, ExchangePerilTopic, PauseKey } from "../internal/routing/routing.js";
 import { SimpleQueueType } from "../enums.js";
 import { GameState } from "../internal/gamelogic/gamestate.js";
 import { commandSpawn } from "../internal/gamelogic/spawn.js";
-import { commandMove } from "../internal/gamelogic/move.js";
+import { commandMove, handleMove } from "../internal/gamelogic/move.js";
 import { handlerPause } from "./handlers.js";
+import type { ArmyMove } from "../internal/gamelogic/gamedata.js";
+import { publishJSON } from "../internal/pubsub/publish.js";
 
 async function main() {
   const connection = "amqp://guest:guest@localhost:5672/";
@@ -28,6 +30,13 @@ async function main() {
     PauseKey,
     SimpleQueueType.Transient
   );
+
+    const publish_channel = await conn.createConfirmChannel();
+
+    await publish_channel.assertExchange(ExchangePerilTopic, "topic", {
+      durable: true,
+    });
+
   const gamestate = new GameState(userName);
 
   subscribeJSON(
@@ -38,6 +47,18 @@ async function main() {
     SimpleQueueType.Transient,
     handlerPause(gamestate)
   );
+
+  subscribeJSON(
+    conn,
+    ExchangePerilTopic,
+    `army_moves.${userName}`,
+    `army_moves.*`,
+    SimpleQueueType.Transient,
+    (move:ArmyMove) => {
+      handleMove(gamestate, move)
+      process.stdout.write("> ")
+    }
+  )
 
   let running = true;
 
@@ -59,7 +80,9 @@ async function main() {
           console.log("Game is paused");
           break;
         }
-        commandMove(gamestate, commands);
+        const move:ArmyMove = commandMove(gamestate, commands);
+        publishJSON(publish_channel, ExchangePerilTopic, `army_moves.${userName}`, move)
+        console.log(`Move successfully published`)
         break;
 
       case "status":
@@ -84,6 +107,8 @@ async function main() {
         break;
     }
   }
+
+
 
   process.on("SIGINT", async () => {
     console.log("Shutting down");
