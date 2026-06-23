@@ -1,17 +1,8 @@
 import amqp from "amqplib";
 import { publishJSON } from "../internal/pubsub/publish.js";
-import {
-  ExchangePerilDirect,
-  ExchangePerilTopic,
-  PauseKey,
-} from "../internal/routing/routing.js";
-import {
-  GameState,
-  type PlayingState,
-} from "../internal/gamelogic/gamestate.js";
+import { ExchangePerilDirect, PauseKey } from "../internal/routing/routing.js";
+import { type PlayingState } from "../internal/gamelogic/gamestate.js";
 import { getInput, printServerHelp } from "../internal/gamelogic/gamelogic.js";
-import { declareAndBind } from "../internal/pubsub/consume.js";
-import { SimpleQueueType } from "../enums.js";
 
 async function main() {
   const connection = "amqp://guest:guest@localhost:5672/";
@@ -59,9 +50,9 @@ async function main() {
         break;
 
       case "resume":
-        state.isPaused = false
+        state.isPaused = false;
         publishJSON(channel, ExchangePerilDirect, PauseKey, state);
-        
+
         console.log(
           `Is game paused? --> ${(state.isPaused = false)}. Beep Boop.`
         );
